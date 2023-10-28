@@ -2,6 +2,12 @@ import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtGui import QPalette, QColor
+import cv2
+import os
+
+imgs = []
+image_L = None
+image_R = None
 
 
 class MainWindow(QWidget):
@@ -10,7 +16,6 @@ class MainWindow(QWidget):
 
         self.setWindowTitle("CV DL HW1")
         self.setGeometry(300, 300, 1000, 600)  # set the position and size of the window
-        self.setMinimumSize(1200, 800)  # set the minimum size of the window
 
         load_image = LoadImage()
         calibration = Calibration()
@@ -24,26 +29,19 @@ class MainWindow(QWidget):
 
         # layout 1
         layout1 = QHBoxLayout()
-        layout1.addStretch(1)
         layout1.addWidget(load_image)
-        layout1.addStretch(1)
         layout1.addWidget(calibration)
-        layout1.addStretch(1)
         layout1.addWidget(augment_reality)
-        layout1.addStretch(1)
         layout1.addWidget(stereo_disparity_map)
-        layout1.addStretch(1)
 
         # layout 2
         layout2 = QHBoxLayout()
-        layout2.addStretch(1)
         layout2.addWidget(sift)
-        layout2.addStretch(1)
         layout2.addWidget(vgg19)
-        layout2.addStretch(1)
+
         # set alignment
-        # layout1.setAlignment(Qt.AlignTop)
-        # layout2.setAlignment(Qt.AlignTop)
+        layout1.setAlignment(Qt.AlignCenter)
+        layout2.setAlignment(Qt.AlignCenter)
 
         layout.addLayout(layout1)
         layout.addLayout(layout2)
@@ -85,21 +83,31 @@ class LoadImage(QFrame):
         folder_path = QFileDialog.getExistingDirectory(self, "Select Directory")
         # print the path of the selected folder
         print(folder_path)
-        # pass
+        # load all the images in the folder
+        global imgs
+        imgs = []  # clear the list
+        for filename in os.listdir(folder_path):
+            img = cv2.imread(os.path.join(folder_path, filename))
+            if img is not None:
+                imgs.append(img)
 
     def load_image_L(self):
         # open a dialog to select a file
         file_path = QFileDialog.getOpenFileName(self, "Select File")
         # print the path of the selected file
         print(file_path)
-        # pass
+        # get the image
+        global image_L
+        image_L = cv2.imread(file_path[0])
 
     def load_image_R(self):
         # open a dialog to select a file
         file_path = QFileDialog.getOpenFileName(self, "Select File")
         # print the path of the selected file
         print(file_path)
-        # pass
+        # get the image
+        global image_R
+        image_R = cv2.imread(file_path[0])
 
 
 class Calibration(QFrame):
