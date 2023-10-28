@@ -4,6 +4,7 @@ from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtGui import QPalette, QColor
 import cv2
 import os
+import numpy as np
 
 imgs = []
 image_L = None
@@ -113,6 +114,8 @@ class LoadImage(QFrame):
 class Calibration(QFrame):
     def __init__(self):
         super().__init__()
+        # initialize parameters
+        self.params()
 
         # set border
         self.setFrameShape(QFrame.StyledPanel)
@@ -129,6 +132,7 @@ class Calibration(QFrame):
         find_corners_button.clicked.connect(self.find_corners)
         # find intrinsic button
         find_intrinsic_button = QPushButton("1.2 Find intrinsic")
+        find_intrinsic_button.clicked.connect(self.find_intrinsic)
         # find extrinsic frame
         find_extrinsic_frame = QFrame()
         find_extrinsic_frame.setFrameShape(QFrame.StyledPanel)
@@ -139,15 +143,19 @@ class Calibration(QFrame):
         spin_box = QSpinBox()  # add spin box
         spin_box.setRange(1, 15)
         spin_box.setValue(1)
+        spin_box.valueChanged.connect(self.on_spin_box_value_changed)
         find_extrinsic_button = QPushButton("Find extrinsic")  # add button
+        find_extrinsic_button.clicked.connect(self.find_extrinsic)
         # add to layout of find extrinsic frame
         find_extrinsic_layout.addWidget(find_extrinsic_label)
         find_extrinsic_layout.addWidget(spin_box)
         find_extrinsic_layout.addWidget(find_extrinsic_button)
         # find distortion button
         find_distortion_button = QPushButton("1.4 Find distortion")
+        find_distortion_button.clicked.connect(self.find_distortion)
         # show result button
         show_result_button = QPushButton("1.5 Show result")
+        show_result_button.clicked.connect(self.show_result)
 
         # add title label to layout
         self.layout.addWidget(title_label)
@@ -158,21 +166,108 @@ class Calibration(QFrame):
         self.layout.addWidget(find_distortion_button)
         self.layout.addWidget(show_result_button)
 
-    def find_corners(self):
-        # check the channel of the image
-        print(imgs[0].shape)
+    def params(self):
+        self.criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+        self.chessboard_size = (8, 11)
+        self.win_size = (5, 5)
+        self.zero_zone = (-1, -1)
+        self.image_points = []
+        self.object_points = []
+        self.intrinsic_matrix = None
+        self.distortion_coefficients = None
+        self.spin_box_value = 1
 
-        # gray_imgs = []  # store gray images
-        # global imgs  # get the images
-        # # grayscale the image
-        # for img in imgs:
-        #     gray = cv2.cvtColor(image_L, cv2.COLOR_BGR2GRAY)
-        #     gray_imgs.append(gray)
-        # # find corners
-        # corners = []
-        # for gray in gray_imgs:
-        #     ret, corner = cv2.findChessboardCorners(gray, (9, 6), None)
-        #     corners.append(corner)
+    def find_corners(self):
+        global imgs  # get the images
+        gray_imgs = []  # store gray images
+        corners_imgs = []  # store images with corners
+
+        for img in imgs:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # grayscale the image
+            gray_imgs.append(gray)
+
+        chessboard_size = (8, 11)  # chessboard size
+        win_size = (5, 5)  # window size
+        zero_zone = (-1, -1)  # this parameter means to ignore
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)  # criteria
+
+        # find corners
+        for gray in gray_imgs:
+            ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
+            if ret:
+                corners = cv2.cornerSubPix(gray, corners, win_size, zero_zone, criteria)
+                # draw corners
+                img_with_corners = cv2.drawChessboardCorners(gray, chessboard_size, corners, ret)
+                # store the image
+                corners_imgs.append(img_with_corners)
+            else:
+                print("Can't find corners")
+
+        # show the images
+        for img in corners_imgs:
+            cv2.imshow("img", img)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+    def find_intrinsic(self):
+        global imgs
+        self.object_points = []  # 3D points in real world space
+        self.image_points = []  # 2D points in image plane
+        chessboard_size = (8, 11)  # chessboard size
+        for img in imgs:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # grayscale the image
+            ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
+            if ret:
+                corners = cv2.cornerSubPix(gray, corners, (5, 5), (-1, -1), (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001))
+                self.image_points.append(corners)
+
+                # prepare object points
+                object_point = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+                object_point[:, :2] = np.mgrid[0 : chessboard_size[0], 0 : chessboard_size[1]].T.reshape(-1, 2)
+                self.object_points.append(object_point)
+
+        ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(self.object_points, self.image_points, imgs[0].shape[:2], None, None)
+        print("Camera Matrix: ")
+        print(mtx)
+        self.intrinsic_matrix, self.distortion_coefficients = mtx, dist
+
+    def on_spin_box_value_changed(self, spin_box_value):
+        self.spin_box_value = spin_box_value
+
+    def find_extrinsic(self):
+        img_index = self.spin_box_value - 1
+        object_points = self.object_points[img_index]
+        image_points = self.image_points[img_index]
+        # estimate the rotation and translation vectors
+        ret, rvecs, tvecs = cv2.solvePnP(object_points, image_points, self.intrinsic_matrix, self.distortion_coefficients)
+        # Extrinsic Matrix (rotation and translation)
+        extrinsic_matrix = np.hstack((rvecs, tvecs))
+        print("Extrinsic Matrix: ")
+        print(extrinsic_matrix)
+
+    def find_distortion(self):
+        print("Distortion Coefficients: (K1, K2, P1, P2, K3)")
+        print(self.distortion_coefficients)
+
+    def show_result(self):
+        # Undistorted Image
+        global imgs
+        undistorted_imgs = []
+        for img in imgs:
+            undistorted_img = cv2.undistort(img, self.intrinsic_matrix, self.distortion_coefficients)
+            undistorted_imgs.append(undistorted_img)
+
+        # show the images
+        for img, undistorted_img in zip(imgs, undistorted_imgs):
+            # write text on the image
+            cv2.putText(img, "Distorted Image", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+            cv2.putText(undistorted_img, "Undistorted Image", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+            # concatenate the images
+            concatenated_img = np.concatenate((img, undistorted_img), axis=1)
+            # show the image
+            cv2.imshow("img", concatenated_img)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
 
 class AugmentReality(QFrame):
