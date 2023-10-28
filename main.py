@@ -367,12 +367,16 @@ class SIFT(QFrame):
         title_label = QLabel("4. SIFT")
         # load image1 button
         load_image1_button = QPushButton("4.1 Load Image1")
+        load_image1_button.clicked.connect(self.load_image1)
         # load image2 button
         load_image2_button = QPushButton("4.2 Load Image2")
+        load_image2_button.clicked.connect(self.load_image2)
         # keypoints button
         keypoints_button = QPushButton("4.3 Keypoints")
+        keypoints_button.clicked.connect(self.keypoints)
         # matched keypoints button
         matched_keypoints_button = QPushButton("4.4 Matched keypoints")
+        matched_keypoints_button.clicked.connect(self.matched_keypoints)
 
         # add title label to layout
         self.layout.addWidget(title_label)
@@ -381,6 +385,74 @@ class SIFT(QFrame):
         self.layout.addWidget(load_image2_button)
         self.layout.addWidget(keypoints_button)
         self.layout.addWidget(matched_keypoints_button)
+
+    def params(self):
+        self.image1 = None
+        self.image2 = None
+
+    def load_image1(self):
+        # open a dialog to select a file
+        file_path = QFileDialog.getOpenFileName(self, "Select File")
+        # get the image
+        self.image1 = cv2.imread(file_path[0])
+
+    def load_image2(self):
+        # open a dialog to select a file
+        file_path = QFileDialog.getOpenFileName(self, "Select File")
+        # get the image
+        self.image2 = cv2.imread(file_path[0])
+
+    def keypoints(self):
+        # convert to grayscale
+        image_gray = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
+
+        # create a SIFT object
+        sift = cv2.SIFT_create()
+
+        # detect keypoints and compute descriptors
+        keypoints, descriptors = sift.detectAndCompute(image_gray, None)
+
+        # draw keypoints
+        image_with_keypoints = cv2.drawKeypoints(image_gray, keypoints, None, color=(0, 255, 0))
+
+        # show the images
+        cv2.imshow("image_L_with_keypoints", image_with_keypoints)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    def matched_keypoints(self):
+        # convert to grayscale
+        image1_gray = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
+        image2_gray = cv2.cvtColor(self.image2, cv2.COLOR_BGR2GRAY)
+
+        # create a SIFT object
+        sift = cv2.SIFT_create()
+
+        # detect keypoints and compute descriptors
+        keypoints1, descriptors1 = sift.detectAndCompute(image1_gray, None)
+        keypoints2, descriptors2 = sift.detectAndCompute(image2_gray, None)
+
+        # create a BFMatcher object
+        bf = cv2.BFMatcher()
+
+        # match descriptors
+        matches = bf.knnMatch(descriptors1, descriptors2, k=2)
+
+        # apply ratio test
+        good_matches = []
+        for m, n in matches:
+            if m.distance < 0.75 * n.distance:
+                good_matches.append([m])
+
+        # draw matches
+        image_with_matches = cv2.drawMatchesKnn(
+            image1_gray, keypoints1, image2_gray, keypoints2, good_matches, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
+        )
+
+        # show the images
+        cv2.imshow("image_with_matches", image_with_matches)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
 
 class VGG19(QFrame):
