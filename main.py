@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt, QRect
-from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtGui import *
 import cv2
 import os
 import numpy as np
@@ -315,11 +315,40 @@ class StereoDisparityMap(QFrame):
         title_label = QLabel("3. Stereo Disparity Map")
         # stereo disparity map button
         stereo_disparity_map_button = QPushButton("3.1 Stereo disparity map")
+        stereo_disparity_map_button.clicked.connect(self.stereo_disparity_map)
 
         # add title label to layout
         self.layout.addWidget(title_label)
         # add other objects to layout
         self.layout.addWidget(stereo_disparity_map_button)
+
+    def stereo_disparity_map(self):
+        global image_L, image_R
+        if image_L is None or image_R is None:
+            print("Please load images first")
+            return
+        else:
+            # convert to grayscale
+            image_L_gray = cv2.cvtColor(image_L, cv2.COLOR_BGR2GRAY)
+            image_R_gray = cv2.cvtColor(image_R, cv2.COLOR_BGR2GRAY)
+
+        # create a StereoBM object with default parameters
+        num_disparities = 256  # must be divisible by 16
+        block_size = 25  # must be odd and between 5 and 255
+        stereo = cv2.StereoBM_create(numDisparities=num_disparities, blockSize=block_size)
+
+        # compute the disparity map
+        disparity_map = stereo.compute(image_L_gray, image_R_gray)
+
+        # normalize the disparity map
+        min_disparity = disparity_map.min()
+        max_disparity = disparity_map.max()
+        disparity_map_normalized = ((disparity_map - min_disparity) / (max_disparity - min_disparity) * 255).astype(np.uint8)
+
+        # show the disparity map
+        cv2.imshow("disparity map", disparity_map_normalized)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
 
 class SIFT(QFrame):
