@@ -126,6 +126,7 @@ class Calibration(QFrame):
         title_label = QLabel("1. Calibration")
         # find corners button
         find_corners_button = QPushButton("1.1 Find corners")
+        find_corners_button.clicked.connect(self.find_corners)
         # find intrinsic button
         find_intrinsic_button = QPushButton("1.2 Find intrinsic")
         # find extrinsic frame
@@ -156,6 +157,22 @@ class Calibration(QFrame):
         self.layout.addWidget(find_extrinsic_frame)
         self.layout.addWidget(find_distortion_button)
         self.layout.addWidget(show_result_button)
+
+    def find_corners(self):
+        # check the channel of the image
+        print(imgs[0].shape)
+
+        # gray_imgs = []  # store gray images
+        # global imgs  # get the images
+        # # grayscale the image
+        # for img in imgs:
+        #     gray = cv2.cvtColor(image_L, cv2.COLOR_BGR2GRAY)
+        #     gray_imgs.append(gray)
+        # # find corners
+        # corners = []
+        # for gray in gray_imgs:
+        #     ret, corner = cv2.findChessboardCorners(gray, (9, 6), None)
+        #     corners.append(corner)
 
 
 class AugmentReality(QFrame):
