@@ -5,8 +5,17 @@ from PyQt5.QtGui import *
 import cv2
 import os
 import numpy as np
+import torch
+import torchvision.transforms as transforms
+import torchvision
+import torch.nn.functional as F
+from torchsummary import summary
+from PIL import Image
+import matplotlib.pyplot as plt
 
 imgs = []
+imgs_PIL = []
+filenames = []
 image_L = None
 image_R = None
 
@@ -85,12 +94,20 @@ class LoadImage(QFrame):
         # print the path of the selected folder
         print(folder_path)
         # load all the images in the folder
-        global imgs
+        global imgs, imgs_PIL, filenames
         imgs = []  # clear the list
+        imgs_PIL = []  # clear the list
+        filenames = []  # clear the list
         for filename in os.listdir(folder_path):
+            img_PIL = Image.open(os.path.join(folder_path, filename))
             img = cv2.imread(os.path.join(folder_path, filename))
+
             if img is not None:
                 imgs.append(img)
+            if img_PIL is not None:
+                imgs_PIL.append(img_PIL)
+
+            filenames.append(filename)
 
     def load_image_L(self):
         # open a dialog to select a file
@@ -459,6 +476,10 @@ class VGG19(QFrame):
     def __init__(self):
         super().__init__()
 
+        # initialize parameters
+        self.params()
+        self.load_model()
+
         # set border
         self.setFrameShape(QFrame.StyledPanel)
         self.setFrameShadow(QFrame.Raised)
@@ -471,20 +492,26 @@ class VGG19(QFrame):
         title_label = QLabel("5. VGG19")
         # load image button
         load_image_button = QPushButton("Load Image")
+        load_image_button.clicked.connect(self.load_image)
         # show augmented images button
         show_augmented_images_button = QPushButton("5.1 Show Augmented Images")
+        show_augmented_images_button.clicked.connect(self.show_augmented_images)
         # show model structure button
         show_model_structure_button = QPushButton("5.2 Show Model Structure")
+        show_model_structure_button.clicked.connect(self.show_model_structure)
         # show Acc and Loss button
         show_acc_and_loss_button = QPushButton("5.3 Show Acc and Loss")
+        show_acc_and_loss_button.clicked.connect(self.show_acc_and_loss)
         # inference button
         inference_button = QPushButton("5.4 Inference")
+        inference_button.clicked.connect(self.inference)
         # predict label
-        predict_label = QLabel("Predict= ")
+        self.predict_label = QLabel("Predict= ")
         # graphics view with default text in it
-        graphics_view = QGraphicsView()
-        graphics_view.setScene(QGraphicsScene())
-        graphics_view.scene().addText("Inference Image")
+        self.graphics_view = QGraphicsView()
+        self.graphics_view.setScene(QGraphicsScene())
+        self.graphics_view.scene().addText("Inference Image")
+        self.graphics_view.setFixedSize(150, 150)
 
         # add title label to layout
         self.layout.addWidget(title_label)
@@ -494,8 +521,118 @@ class VGG19(QFrame):
         self.layout.addWidget(show_model_structure_button)
         self.layout.addWidget(show_acc_and_loss_button)
         self.layout.addWidget(inference_button)
-        self.layout.addWidget(predict_label)
-        self.layout.addWidget(graphics_view)
+        self.layout.addWidget(self.predict_label)
+        self.layout.addWidget(self.graphics_view)
+
+    def params(self):
+        self.state_dict = None
+        self.model = torchvision.models.vgg19_bn(num_classes=10)
+        self.inference_img = None
+
+    def load_model(self):
+        # load the model by pth file
+        if torch.cuda.is_available():
+            self.state_dict = torch.load("model.pth")
+        else:
+            self.state_dict = torch.load("model.pth", map_location=torch.device("cpu"))
+        self.model.load_state_dict(self.state_dict)
+        self.model.eval()
+
+    def load_image(self):
+        # open a dialog to select a file
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select File")
+        # get the image
+        self.inference_img = Image.open(file_path)
+        # show the image in the graphics view and set the size 128x128
+        pixmap = QPixmap(file_path)
+        scaled_pixmap = pixmap.scaled(128, 128, Qt.KeepAspectRatio)
+        self.graphics_view.scene().clear()
+        self.graphics_view.setFixedSize(150, 150)
+        self.graphics_view.scene().addPixmap(scaled_pixmap)
+
+    def show_augmented_images(self):
+        global imgs, imgs_PIL, filenames
+        if len(imgs) == 0:
+            print("Please load images first")
+            return
+
+        # Create a list to store the augmented images
+        augmented_images = []
+
+        # Define the data augmentation transformations
+        data_transforms = transforms.Compose(
+            [
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomVerticalFlip(),
+                transforms.RandomRotation(30),
+            ]
+        )
+
+        # Apply the transformations to the images
+        for img_PIL in imgs_PIL:
+            augmented_images.append(data_transforms(img_PIL))
+
+        # Get the labels from the filenames, and remove the file extensions
+        labels = [os.path.splitext(filename)[0] for filename in filenames]
+
+        # Create a new window to display augmented images with labels
+        plt.figure(figsize=(10, 10))
+        # Show the augmented images
+        for index, (img, label) in enumerate(zip(augmented_images, labels)):
+            plt.subplot(3, 3, index + 1)
+            plt.imshow(img)
+            plt.title(label)
+        # Show the plot
+        plt.suptitle("Augmented Images")
+        plt.tight_layout()
+        plt.show()
+
+    def show_model_structure(self):
+        # Show the summary of the model
+        summary(self.model, (3, 32, 32))
+
+    def show_acc_and_loss(self):
+        # Load the image
+        img = Image.open("./epoch_40.png")
+        # Show the image
+        plt.figure(figsize=(10, 5))
+        plt.imshow(img)
+        plt.show()
+
+    def preprocess_image(self, image):
+        transform = transforms.Compose(
+            [
+                transforms.Resize((32, 32)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        )
+        image = transform(image)
+        return image
+
+    def inference(self):
+        img = self.preprocess_image(self.inference_img)
+
+        # inference
+        with torch.no_grad():
+            output = self.model(img.unsqueeze(0))
+
+        # labels
+        labels = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]
+        print(output.data)
+        probabilities = F.softmax(output.data, dim=1).squeeze()
+        print(probabilities)
+        # Show the probability distribution of model prediction in new window.
+        plt.figure(figsize=(10, 5))
+        plt.bar(labels, probabilities)
+        plt.title("Probability of each class")
+        plt.xlabel("Class")
+        plt.ylabel("Probability")
+        plt.show()
+        # Set the predicted label
+        predicted_label = labels[torch.argmax(probabilities)]
+        # Show the predicted label in the label
+        self.predict_label.setText("Predict= " + predicted_label)
 
 
 if __name__ == "__main__":
