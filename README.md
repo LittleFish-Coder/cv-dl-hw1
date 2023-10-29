@@ -2,6 +2,7 @@
 
 ## Environment
 - Python 3.8
+
 use `conda create -n <env_name> python=3.8` to create a new environment
 
 ## Packages
