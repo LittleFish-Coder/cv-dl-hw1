@@ -6,9 +6,11 @@ import torchvision
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 
 # Check if GPU is available (cuda for gpu, mps for mac m1, cpu for others)
-device = "cude" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+print("Using {} device".format(device))
 
 # Hyperparameters
 learning_rate = 0.001
@@ -38,22 +40,24 @@ transform_val = transforms.Compose(
 )
 
 # Load the CIFAR10 dataset
-trainset = torchvision.datasets.CIFAR10(root="./data", train=True, download=True, transform=transform_train)
-valset = torchvision.datasets.CIFAR10(root="./data", train=False, download=True, transform=transform_val)
+trainset = torchvision.datasets.CIFAR10(root="./data", train=True, download=False, transform=transform_train)
+valset = torchvision.datasets.CIFAR10(root="./data", train=False, download=False, transform=transform_val)
 
 # Define the dataloader
 train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
 val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=2)
 
-# Load pretrained VGG19 model with batch normalization, and change the last layer to 10 classes
-model = torchvision.models.vgg19_bn(pretrained=True, num_classes=num_classes)
+# Load pretrained VGG19 model with batch normalization
+model = torchvision.models.vgg19_bn(pretrained=True)
+# Change the last layer to fit the CIFAR10 dataset
+model.classifier[6] = nn.Linear(4096, num_classes)
 
 # Move the model to GPU for calculation
 model = model.to(device)
 
 # Define the loss function and optimizer
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate, momentum=0.9)
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Record the loss and accuracy for training and validation set
 train_loss, train_acc = [], []
@@ -61,7 +65,7 @@ val_loss, val_acc = [], []
 
 # Train the model
 print("Training the model...")
-for epoch in range(epochs):
+for epoch in tqdm(range(epochs)):
     model.train()
     print("\nEpoch: ", epoch + 1)
     batch_train_loss, batch_train_acc = [], []
@@ -121,18 +125,25 @@ for epoch in range(epochs):
 # Plot the loss and accuracy
 plt.figure(figsize=(10, 5))
 plt.subplot(1, 2, 1)
-plt.plot(train_loss, label="Train")
-plt.plot(val_loss, label="Validation")
+plt.plot(train_loss, label="train_loss")
+plt.plot(val_loss, label="val_loss")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
 plt.title("Loss")
 plt.legend()
 
 plt.subplot(1, 2, 2)
-plt.plot(train_acc, label="Train")
-plt.plot(val_acc, label="Validation")
+plt.plot(train_acc, label="train_acc")
+plt.plot(val_acc, label="val_acc")
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy")
 plt.title("Accuracy")
 plt.legend()
 
 plt.show()
+
+# Save the image
+plt.savefig(f"./epoch_{epoch}.png")
 
 # Save the model
 torch.save(model.state_dict(), "./model.pth")
