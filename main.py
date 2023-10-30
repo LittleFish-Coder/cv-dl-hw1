@@ -258,7 +258,7 @@ class Calibration(QFrame):
         # estimate the rotation and translation vectors
         ret, rvecs, tvecs = cv2.solvePnP(object_points, image_points, self.intrinsic_matrix, self.distortion_coefficients)
         # Extrinsic Matrix (rotation and translation)
-        extrinsic_matrix = np.hstack((rvecs, tvecs))
+        extrinsic_matrix = np.column_stack((cv2.Rodrigues(rvecs)[0], tvecs))
         print("Extrinsic Matrix: ")
         print(extrinsic_matrix)
 
