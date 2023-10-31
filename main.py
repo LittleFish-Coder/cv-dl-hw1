@@ -539,7 +539,7 @@ class StereoDisparityMap(QFrame):
 
         # create a StereoBM object with default parameters
         num_disparities = 256  # must be divisible by 16
-        block_size = 25  # must be odd and between 5 and 255
+        block_size = 25  # must be odd and between 5 and 50
         stereo = cv2.StereoBM_create(numDisparities=num_disparities, blockSize=block_size)
 
         # compute the disparity map
@@ -548,12 +548,43 @@ class StereoDisparityMap(QFrame):
         # normalize the disparity map
         min_disparity = disparity_map.min()
         max_disparity = disparity_map.max()
-        disparity_map_normalized = ((disparity_map - min_disparity) / (max_disparity - min_disparity) * 255).astype(np.uint8)
+        self.disparity_map_normalized = ((disparity_map - min_disparity) / (max_disparity - min_disparity) * 255).astype(np.uint8)
 
         # show the disparity map
-        cv2.imshow("disparity map", disparity_map_normalized)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        cv2.imshow("disparity map", self.disparity_map_normalized)
+
+        # show image L and R
+        self.show_image_L_and_R()
+
+        # set the mouse callback function
+        cv2.setMouseCallback("image_L", self.check_disparity_value)
+
+    def show_image_L_and_R(self):
+        global image_L, image_R
+        if image_L is None or image_R is None:
+            print("Please load images first")
+            return
+
+        # show the images
+        cv2.imshow("image_L", image_L)
+        cv2.imshow("image_R", image_R)
+
+    def check_disparity_value(self, event, x, y, flags, param):
+        global image_L, image_R
+        if event == cv2.EVENT_LBUTTONDOWN:
+            # get the depth
+            disparity_value = self.disparity_map_normalized[y, x]
+            # compute the corresponding point
+            corresponding_x = x - disparity_value
+
+            print(f"({x}, y={y}), dis={disparity_value}")
+
+            # mark the corresponding point at image_R
+            cv2.circle(image_R, (corresponding_x, y), 15, (0, 255, 0), -1)
+            cv2.imshow("image_R", image_R)
+
+        if event == cv2.EVENT_RBUTTONDOWN:
+            cv2.destroyAllWindows()
 
 
 class SIFT(QFrame):
