@@ -99,15 +99,18 @@ class LoadImage(QFrame):
         imgs_PIL = []  # clear the list
         filenames = []  # clear the list
         for filename in os.listdir(folder_path):
-            img_PIL = Image.open(os.path.join(folder_path, filename))
-            img = cv2.imread(os.path.join(folder_path, filename))
+            try:
+                img_PIL = Image.open(os.path.join(folder_path, filename))
+                img = cv2.imread(os.path.join(folder_path, filename))
 
-            if img is not None:
-                imgs.append(img)
-            if img_PIL is not None:
-                imgs_PIL.append(img_PIL)
+                if img is not None:
+                    imgs.append(img)
+                if img_PIL is not None:
+                    imgs_PIL.append(img_PIL)
 
-            filenames.append(filename)
+                filenames.append(filename)
+            except:
+                pass
 
     def load_image_L(self):
         # open a dialog to select a file
@@ -185,7 +188,7 @@ class Calibration(QFrame):
 
     def params(self):
         self.criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-        self.chessboard_size = (8, 11)
+        self.chessboard_size = (11, 8)
         self.win_size = (5, 5)
         self.zero_zone = (-1, -1)
         self.image_points = []
@@ -203,9 +206,9 @@ class Calibration(QFrame):
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # grayscale the image
             gray_imgs.append(gray)
 
-        chessboard_size = (8, 11)  # chessboard size
-        win_size = (5, 5)  # window size
-        zero_zone = (-1, -1)  # this parameter means to ignore
+        chessboard_size = self.chessboard_size  # chessboard size
+        win_size = self.win_size  # window size
+        zero_zone = self.win_size  # this parameter means to ignore
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)  # criteria
 
         # find corners
@@ -230,12 +233,15 @@ class Calibration(QFrame):
         global imgs
         self.object_points = []  # 3D points in real world space
         self.image_points = []  # 2D points in image plane
-        chessboard_size = (8, 11)  # chessboard size
+        chessboard_size = self.chessboard_size  # chessboard size
+        win_size = self.win_size  # window size
+        zero_zone = self.win_size  # this parameter means to ignore
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)  # criteria
         for img in imgs:
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # grayscale the image
             ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
             if ret:
-                corners = cv2.cornerSubPix(gray, corners, (5, 5), (-1, -1), (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001))
+                corners = cv2.cornerSubPix(gray, corners, win_size, zero_zone, criteria)
                 self.image_points.append(corners)
 
                 # prepare object points
@@ -244,7 +250,7 @@ class Calibration(QFrame):
                 self.object_points.append(object_point)
 
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(self.object_points, self.image_points, imgs[0].shape[:2], None, None)
-        print("Camera Matrix: ")
+        print("Intrinsic Matrix: ")
         print(mtx)
         self.intrinsic_matrix, self.distortion_coefficients = mtx, dist
 
@@ -291,6 +297,9 @@ class AugmentReality(QFrame):
     def __init__(self):
         super().__init__()
 
+        # initialize parameters
+        self.params()
+
         # set border
         self.setFrameShape(QFrame.StyledPanel)
         self.setFrameShadow(QFrame.Raised)
@@ -303,10 +312,13 @@ class AugmentReality(QFrame):
         title_label = QLabel("2. Augment Reality")
         # line edit
         line_edit = QLineEdit()
+        line_edit.textChanged.connect(self.on_line_edit_changed)
         # show words on board button
         show_words_on_board_button = QPushButton("2.1 Show words on board")
+        show_words_on_board_button.clicked.connect(self.show_words_on_board)
         # show words vertical button
         show_words_vertical_button = QPushButton("2.2 Show words vertical")
+        show_words_vertical_button.clicked.connect(self.show_words_vertical)
 
         # add title label to layout
         self.layout.addWidget(title_label)
@@ -314,6 +326,182 @@ class AugmentReality(QFrame):
         self.layout.addWidget(line_edit)
         self.layout.addWidget(show_words_on_board_button)
         self.layout.addWidget(show_words_vertical_button)
+
+    def params(self):
+        self.chessboard_size = (11, 8)
+        self.win_size = (5, 5)
+        self.zero_zone = (-1, -1)
+        self.text = ""
+        self.object_points = []
+        self.image_points = []
+        self.intrinsic_matrix = None
+        self.distortion_coefficients = None
+        self.rvecs = None
+        self.tvecs = None
+        self.letter_3d_coordinates = {}
+
+    def on_line_edit_changed(self, text):
+        print("Line edit text changed:", text)
+        self.text = text
+
+    def find_intrinsic(self):
+        global imgs
+        self.object_points = []  # 3D points in real world space
+        self.image_points = []  # 2D points in image plane
+        chessboard_size = self.chessboard_size  # chessboard size
+        win_size = self.win_size  # window size
+        zero_zone = self.win_size  # this parameter means to ignore
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)  # criteria
+        for img in imgs:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # grayscale the image
+            ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
+            if ret:
+                corners = cv2.cornerSubPix(gray, corners, win_size, zero_zone, criteria)
+                self.image_points.append(corners)
+
+                # prepare object points
+                object_point = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+                object_point[:, :2] = np.mgrid[0 : chessboard_size[0], 0 : chessboard_size[1]].T.reshape(-1, 2)
+                self.object_points.append(object_point)
+
+        ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(self.object_points, self.image_points, imgs[0].shape[:2], None, None)
+        print("Intrinsic Matrix: ")
+        print(mtx)
+        self.intrinsic_matrix, self.distortion_coefficients, self.rvecs, self.tvecs = mtx, dist, rvecs, tvecs
+
+    def load_onboard_txt(self):
+        self.letter_3d_coordinates = {}  # clear the dictionary
+
+        # select the txt file
+        # file_path = QFileDialog.getOpenFileName(self, "Select File")
+        file_path = "./alphabet_lib_onboard.txt"  # fix the path
+
+        fs = cv2.FileStorage(file_path, cv2.FILE_STORAGE_READ)  # open the file for reading
+
+        # read the letters
+        for letter in self.text:
+            # read the letter
+            letter_3d_coordinate = fs.getNode(letter).mat().astype(np.float32)
+            # reshape the letter
+            letter_3d_coordinate = letter_3d_coordinate.reshape(-1, 3)
+            # store the letter
+            self.letter_3d_coordinates[letter] = letter_3d_coordinate
+
+    def load_vertical_txt(self):
+        self.letter_3d_coordinates = {}  # clear the dictionary
+
+        # select the txt file
+        # file_path = QFileDialog.getOpenFileName(self, "Select File")
+        file_path = "./alphabet_lib_vertical.txt"  # fix the path
+
+        fs = cv2.FileStorage(file_path, cv2.FILE_STORAGE_READ)  # open the file for reading
+
+        # read the letters
+        for letter in self.text:
+            # read the letter
+            letter_3d_coordinate = fs.getNode(letter).mat().astype(np.float32)
+            # reshape the letter
+            letter_3d_coordinate = letter_3d_coordinate.reshape(-1, 3)
+            # store the letter
+            self.letter_3d_coordinates[letter] = letter_3d_coordinate
+
+    def offset_letter(self, index, letter):
+        letter_3d_coordinate = self.letter_3d_coordinates[letter].copy()
+        # define the 6 block for the chessboard
+        offset = {
+            0: [7, 5, 0],
+            1: [4, 5, 0],
+            2: [1, 5, 0],
+            3: [7, 2, 0],
+            4: [4, 2, 0],
+            5: [1, 2, 0],
+        }
+        # offset the letter
+        for i, coordinate in enumerate(letter_3d_coordinate):
+            coordinate[0] += offset[index][0]
+            coordinate[1] += offset[index][1]
+            coordinate[2] += offset[index][2]
+            letter_3d_coordinate[i] = coordinate
+
+        # print(letter_3d_coordinate)
+
+        return letter_3d_coordinate
+
+    def show_words_on_board(self):
+        global imgs
+        if len(imgs) == 0:
+            print("Please load images first")
+            return
+
+        if len(self.text) == 0:
+            print("Please input text first")
+            return
+
+        self.find_intrinsic()  # get the intrinsic(for all imgs)
+        self.load_onboard_txt()
+
+        # global imgs
+        for index, img in enumerate(imgs):
+            img = img.copy()
+            rvec = self.rvecs[index]
+            tvec = self.tvecs[index]
+            for text_index, letter in enumerate(self.text):
+                letter_3d_coordinate = self.offset_letter(text_index, letter)
+
+                # project the 3D letter to 2D
+                image_points, _ = cv2.projectPoints(letter_3d_coordinate, rvec, tvec, self.intrinsic_matrix, self.distortion_coefficients)
+                # print(letter)
+                # print(self.letter_3d_coordinates[letter])
+                # print(image_points.shape)
+
+                # draw the letter
+                for i in range(0, len(image_points), 2):
+                    pt1 = (int(image_points[i][0][0]), int(image_points[i][0][1]))
+                    pt2 = (int(image_points[i + 1][0][0]), int(image_points[i + 1][0][1]))
+                    cv2.line(img, pt1, pt2, (0, 0, 255), 5)
+
+            # show the image
+            cv2.imshow("img", img)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+    def show_words_vertical(self):
+        global imgs
+        if len(imgs) == 0:
+            print("Please load images first")
+            return
+
+        if len(self.text) == 0:
+            print("Please input text first")
+            return
+
+        self.find_intrinsic()  # get the intrinsic(for all imgs)
+        self.load_vertical_txt()
+
+        # global imgs
+        for index, img in enumerate(imgs):
+            img = img.copy()
+            rvec = self.rvecs[index]
+            tvec = self.tvecs[index]
+            for text_index, letter in enumerate(self.text):
+                letter_3d_coordinate = self.offset_letter(text_index, letter)
+
+                # project the 3D letter to 2D
+                image_points, _ = cv2.projectPoints(letter_3d_coordinate, rvec, tvec, self.intrinsic_matrix, self.distortion_coefficients)
+                # print(letter)
+                # print(self.letter_3d_coordinates[letter])
+                # print(image_points.shape)
+
+                # draw the letter
+                for i in range(0, len(image_points), 2):
+                    pt1 = (int(image_points[i][0][0]), int(image_points[i][0][1]))
+                    pt2 = (int(image_points[i + 1][0][0]), int(image_points[i + 1][0][1]))
+                    cv2.line(img, pt1, pt2, (0, 0, 255), 5)
+
+            # show the image
+            cv2.imshow("img", img)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
 
 class StereoDisparityMap(QFrame):
