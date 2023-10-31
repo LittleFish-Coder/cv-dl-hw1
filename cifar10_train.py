@@ -13,9 +13,9 @@ device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is
 print("Using {} device".format(device))
 
 # Hyperparameters
-learning_rate = 0.001
-epochs = 40
-batch_size = 128
+learning_rate = 0.0001
+epochs = 100
+batch_size = 256
 num_classes = 10  # 10 classes for CIFAR10
 
 # Define the transform function for trainset
@@ -25,6 +25,7 @@ transform_train = transforms.Compose(
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
         transforms.RandomRotation(30),
+        transforms.TrivialAugmentWide(),
         # data normalization
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,)),
@@ -48,9 +49,12 @@ train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuf
 val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=2)
 
 # Load pretrained VGG19 model with batch normalization
-model = torchvision.models.vgg19_bn(pretrained=True)
+# model = torchvision.models.vgg19_bn(pretrained=True)
 # Change the last layer to fit the CIFAR10 dataset
-model.classifier[6] = nn.Linear(4096, num_classes)
+# model.classifier[6] = nn.Linear(4096, num_classes)
+
+# Load VGG_bn model without pretrained weights
+model = torchvision.models.vgg19_bn(num_classes=num_classes)
 
 # Move the model to GPU for calculation
 model = model.to(device)
