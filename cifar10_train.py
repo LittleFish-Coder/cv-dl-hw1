@@ -23,7 +23,6 @@ transform_train = transforms.Compose(
     [
         # data augmentation
         transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
         transforms.RandomRotation(30),
         transforms.TrivialAugmentWide(),
         # data normalization
@@ -49,12 +48,12 @@ train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuf
 val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=2)
 
 # Load pretrained VGG19 model with batch normalization
-# model = torchvision.models.vgg19_bn(pretrained=True)
+model = torchvision.models.vgg19_bn(pretrained=True)
 # Change the last layer to fit the CIFAR10 dataset
-# model.classifier[6] = nn.Linear(4096, num_classes)
+model.classifier[6] = nn.Linear(4096, num_classes)
 
-# Load VGG_bn model without pretrained weights
-model = torchvision.models.vgg19_bn(num_classes=num_classes)
+# Load VGG_bn model without pretrained weights (need to train for longer time to get good result)
+# model = torchvision.models.vgg19_bn(num_classes=num_classes)
 
 # Move the model to GPU for calculation
 model = model.to(device)
@@ -144,10 +143,10 @@ plt.ylabel("Accuracy")
 plt.title("Accuracy")
 plt.legend()
 
+# Save the image
+plt.savefig(f"./epoch_{epochs}.png")
+# Show the image
 plt.show()
 
-# Save the image
-plt.savefig(f"./epoch_{epoch}.png")
-
 # Save the model
-torch.save(model.state_dict(), "./model.pth")
+torch.save(model.state_dict(), f"./model_{epochs}.pth")
