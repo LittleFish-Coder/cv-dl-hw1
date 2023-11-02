@@ -15,7 +15,7 @@ print("Using {} device".format(device))
 # Hyperparameters
 learning_rate = 0.0001
 epochs = 100
-batch_size = 256
+batch_size = 128
 num_classes = 10  # 10 classes for CIFAR10
 
 # Define the transform function for trainset
@@ -23,11 +23,12 @@ transform_train = transforms.Compose(
     [
         # data augmentation
         transforms.RandomHorizontalFlip(),
+        transforms.RandomVerticalFlip(),
         transforms.RandomRotation(30),
         transforms.TrivialAugmentWide(),
         # data normalization
         transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,)),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 )
 
@@ -72,7 +73,7 @@ for epoch in tqdm(range(epochs)):
     model.train()
     print("\nEpoch: ", epoch + 1)
     batch_train_loss, batch_train_acc = [], []
-    for i, data in enumerate(train_loader, 0):
+    for i, data in enumerate(train_loader):
         # Prepare data
         inputs, labels = data
         # Load data to GPU
@@ -103,7 +104,7 @@ for epoch in tqdm(range(epochs)):
     model.eval()
     with torch.no_grad():
         batch_val_loss, batch_val_acc = [], []
-        for i, data in enumerate(val_loader, 0):
+        for i, data in enumerate(val_loader):
             # Prepare data
             inputs, labels = data
             # Load data to GPU
@@ -149,4 +150,4 @@ plt.savefig(f"./epoch_{epochs}.png")
 plt.show()
 
 # Save the model
-torch.save(model.state_dict(), f"./model_{epochs}.pth")
+torch.save(model.state_dict(), f"./model.pth")
