@@ -812,7 +812,7 @@ class VGG19(QFrame):
 
     def show_acc_and_loss(self):
         # Load the image
-        img = Image.open("./epoch_40.png")
+        img = Image.open("./loss_and_accuracy.png")
         # Show the image
         plt.figure(figsize=(10, 5))
         plt.imshow(img)
