@@ -574,14 +574,18 @@ class StereoDisparityMap(QFrame):
         if event == cv2.EVENT_LBUTTONDOWN:
             # get the depth
             disparity_value = self.disparity_map_normalized[y, x]
-            # compute the corresponding point
-            corresponding_x = x - disparity_value
 
-            print(f"({x}, y={y}), dis={disparity_value}")
+            if disparity_value == 0:
+                print("Failure case")
+            else:
+                # compute the corresponding point
+                corresponding_x = x - disparity_value
 
-            # mark the corresponding point at image_R
-            cv2.circle(image_R, (corresponding_x, y), 15, (0, 255, 0), -1)
-            cv2.imshow("image_R", image_R)
+                print(f"({corresponding_x}, y={y}), dis={disparity_value}")
+                image_R_copy = image_R.copy()
+                # mark the corresponding point at image_R
+                cv2.circle(image_R_copy, (corresponding_x, y), 15, (0, 255, 0), -1)
+                cv2.imshow("image_R", image_R_copy)
 
         if event == cv2.EVENT_RBUTTONDOWN:
             cv2.destroyAllWindows()
