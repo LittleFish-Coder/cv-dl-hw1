@@ -235,7 +235,7 @@ class Calibration(QFrame):
         self.image_points = []  # 2D points in image plane
         chessboard_size = self.chessboard_size  # chessboard size
         win_size = self.win_size  # window size
-        zero_zone = self.win_size  # this parameter means to ignore
+        zero_zone = self.zero_zone  # this parameter means to ignore
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)  # criteria
         for img in imgs:
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)  # grayscale the image
