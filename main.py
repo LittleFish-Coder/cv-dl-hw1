@@ -98,7 +98,10 @@ class LoadImage(QFrame):
         imgs = []  # clear the list
         imgs_PIL = []  # clear the list
         filenames = []  # clear the list
-        sorted_files = sorted(os.listdir(folder_path), key=lambda x: int(x.split(".")[0]))  # sort the files
+        try:
+            sorted_files = sorted(os.listdir(folder_path), key=lambda x: int(x.split(".")[0]))  # sort the files
+        except:
+            pass
         for filename in sorted_files:
             # print(filename)
             try:

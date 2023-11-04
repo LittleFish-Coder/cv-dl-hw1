@@ -49,12 +49,12 @@ train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuf
 val_loader = torch.utils.data.DataLoader(valset, batch_size=batch_size, shuffle=False, num_workers=2)
 
 # Load pretrained VGG19 model with batch normalization
-model = torchvision.models.vgg19_bn(pretrained=True)
+# model = torchvision.models.vgg19_bn(pretrained=True)
 # Change the last layer to fit the CIFAR10 dataset
-model.classifier[6] = nn.Linear(4096, num_classes)
+# model.classifier[6] = nn.Linear(4096, num_classes)
 
 # Load VGG_bn model without pretrained weights (need to train for longer time to get good result)
-# model = torchvision.models.vgg19_bn(num_classes=num_classes)
+model = torchvision.models.vgg19_bn(num_classes=num_classes)
 
 # Move the model to GPU for calculation
 model = model.to(device)
