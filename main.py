@@ -98,7 +98,9 @@ class LoadImage(QFrame):
         imgs = []  # clear the list
         imgs_PIL = []  # clear the list
         filenames = []  # clear the list
-        for filename in os.listdir(folder_path):
+        sorted_files = sorted(os.listdir(folder_path), key=lambda x: int(x.split(".")[0]))  # sort the files
+        for filename in sorted_files:
+            # print(filename)
             try:
                 img_PIL = Image.open(os.path.join(folder_path, filename))
                 img = cv2.imread(os.path.join(folder_path, filename))
