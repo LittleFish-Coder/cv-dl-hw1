@@ -91,6 +91,9 @@ class LoadImage(QFrame):
     def load_folder(self):
         # open a dialog to select a folder
         folder_path = QFileDialog.getExistingDirectory(self, "Select Directory")
+        # check if the folder is empty
+        if folder_path == "":
+            return
         # print the path of the selected folder
         print(folder_path)
         # load all the images in the folder
@@ -101,7 +104,7 @@ class LoadImage(QFrame):
         try:
             sorted_files = sorted(os.listdir(folder_path), key=lambda x: int(x.split(".")[0]))  # sort the files
         except:
-            pass
+            sorted_files = os.listdir(folder_path)
         for filename in sorted_files:
             # print(filename)
             try:
@@ -120,6 +123,9 @@ class LoadImage(QFrame):
     def load_image_L(self):
         # open a dialog to select a file
         file_path = QFileDialog.getOpenFileName(self, "Select File")
+        # check if the file is empty
+        if file_path[0] == "":
+            return
         # print the path of the selected file
         print(file_path)
         # get the image
@@ -129,6 +135,9 @@ class LoadImage(QFrame):
     def load_image_R(self):
         # open a dialog to select a file
         file_path = QFileDialog.getOpenFileName(self, "Select File")
+        # check if the file is empty
+        if file_path[0] == "":
+            return
         # print the path of the selected file
         print(file_path)
         # get the image
@@ -638,16 +647,26 @@ class SIFT(QFrame):
     def load_image1(self):
         # open a dialog to select a file
         file_path = QFileDialog.getOpenFileName(self, "Select File")
+        # check if the file is empty
+        if file_path[0] == "":
+            return
         # get the image
         self.image1 = cv2.imread(file_path[0])
 
     def load_image2(self):
         # open a dialog to select a file
         file_path = QFileDialog.getOpenFileName(self, "Select File")
+        # check if the file is empty
+        if file_path[0] == "":
+            return
         # get the image
         self.image2 = cv2.imread(file_path[0])
 
     def keypoints(self):
+        # check if the image is empty
+        if self.image1 is None:
+            print("Please load images first")
+            return
         # convert to grayscale
         image_gray = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
 
@@ -666,6 +685,11 @@ class SIFT(QFrame):
         cv2.destroyAllWindows()
 
     def matched_keypoints(self):
+        # check if the image is empty
+        if self.image1 is None or self.image2 is None:
+            print("Please load images first")
+            return
+
         # convert to grayscale
         image1_gray = cv2.cvtColor(self.image1, cv2.COLOR_BGR2GRAY)
         image2_gray = cv2.cvtColor(self.image2, cv2.COLOR_BGR2GRAY)
@@ -769,6 +793,9 @@ class VGG19(QFrame):
     def load_image(self):
         # open a dialog to select a file
         file_path, _ = QFileDialog.getOpenFileName(self, "Select File")
+        # check if the file is empty
+        if file_path == "":
+            return
         # get the image
         self.inference_img = Image.open(file_path)
         # show the image in the graphics view and set the size 128x128
